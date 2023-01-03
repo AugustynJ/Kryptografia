@@ -17,10 +17,12 @@ def sign_message(message, priv_key):
 
 def verify(message, signature, pub_key):
     key = RSA.importKey(pub_key)
-    sig = bytes.fromhex(message)
+    print("signature", signature)
+    sig = bytes.fromhex(signature).decode('utf-8')
+    # str(sig)
     digest = SHA256.new()
     digest.update(message.encode('utf-8'))
-    verifier = PKCS1_v1_5.new(public_key)
+    verifier = PKCS1_v1_5.new(pub_key)
     verified = verifier.verify(digest, sig)
     if verified:
         return True
@@ -62,17 +64,18 @@ print(f"Alice wybiera liczbe x={x}\nliczy g^x={g_x} \ni przesyła Bobowi\n")
 
 # Bob wybiera liczbe y,liczy g^y
 y = 25
+g_y = g ** y
 g_xy = g_x ** y
 
 print(
-    f"Bob wybiera liczbe y={y}\nliczy (g^x)^y={g_xy}\nnastępnie podpisuje ten składnik swoim kluczem prywatnym i przesyła Alice\n")
+    f"Bob wybiera liczbe y={y}\nliczy (g^x)^y={g_xy}\nnastępnie podpisuje ten składnik swoim kluczem prywatnym i przesyła Alice wraz z g^y\n")
 # podpisany hash w postaci szestnastkowej
 g_xy_signed = sign_message(str(g_xy), B_priv_key)
 
 print(g_xy_signed)
 
 # Następnie Alice dostaje podpisaną wiadomość przez Boba, sprawdza jej poprawność i oblicza x Boba
-x_alice = pow(g_xy, (1/y))
-if verify(x_alice, g_xy_signed, B_pub_key):
-    pass
+
+g_xy_alice = g_x * g_y
+if verify(g_xy_alice, g_xy_signed, B_pub_key):
     print("Udana weryfikacja")
