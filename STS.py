@@ -1,62 +1,45 @@
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import PKCS1_OAEP, PKCS1_v1_5
-from Crypto.Hash import SHA256
-from Crypto.Random import random
-from Crypto.Signature import PKCS1_v1_5
-from base64 import b64encode, b64decode
+import rsa
 
 
-def sign_message(message, priv_key):
-    key = RSA.importKey(priv_key)
-    digest = SHA256.new()
-    digest.update(message.encode('utf-8'))
-    signer = PKCS1_v1_5.new(key)
-    sig = signer.sign(digest)
-    return sig.hex()
+def encrypt(message, key):
+    return rsa.encrypt(message.encode('ascii'), key)
 
 
-def verify(message, signature, pub_key):
-    key = RSA.importKey(pub_key)
-    print("signature", signature)
-    sig = bytes.fromhex(signature).decode('utf-8')
-    # str(sig)
-    digest = SHA256.new()
-    digest.update(message.encode('utf-8'))
-    verifier = PKCS1_v1_5.new(pub_key)
-    verified = verifier.verify(digest, sig)
-    if verified:
-        return True
-    else:
-        print("Weryfikacja się nie powiodła")
+def decrypt(ciphertext, key):
+    try:
+        return rsa.decrypt(ciphertext, key).decode('ascii')
+    except:
         return False
 
 
-def encrypt(message, pub_key):
-    cipher = PKCS1_OAEP.new(pub_key)
-    return cipher.encrypt(message)
+def sign(message, key):
+    return rsa.sign(message.encode('ascii'), key, 'SHA-256')
 
 
-def decrypt(message, priv_key):
-    cipher = PKCS1_OAEP.new(key)
-    return cipher.decrypt(message)
+def verify(message, signature, key):
+    try:
+        return rsa.verify(message.encode('ascii'), signature, key,) == 'SHA-256'
+    except:
+        return False
 
 
-# https: // the-it-ninja.blogspot.com/2015/11/station-to-station-encryption-in -python.html
+# Utworzenie klucza publicznego i prywatnego Alice
+pub_key, priv_key = rsa.newkeys(1024)
+a = priv_key.save_pkcs1('PEM')
+a2 = pub_key.save_pkcs1('PEM')
+alice_priv_key = rsa.PrivateKey.load_pkcs1(a)
+alice_pub_key = rsa.PublicKey.load_pkcs1(a2)
+
+# Utworzenie klucza publicznego i prywatnego Boba
+pub_key_2, priv_key_2 = rsa.newkeys(1024)
+b = priv_key_2.save_pkcs1('PEM')
+b2 = pub_key_2.save_pkcs1('PEM')
+bob_priv_key = rsa.PrivateKey.load_pkcs1(b)
+bob_pub_key = rsa.PublicKey.load_pkcs1(b2)
+
 
 # Ustalenie losowej stałej
 g = 4
-
-# Utworzenie klucza publicznego i prywatnego Alice
-key_1 = RSA.generate(1024)
-A_priv_key = key_1.exportKey('PEM')
-A_pub_key = key_1.publickey().exportKey('PEM')
-
-
-key_2 = RSA.generate(1024)
-B_priv_key = key_2.exportKey('PEM')
-B_pub_key = key_2.publickey().exportKey('PEM')
-
-
 # Alice wybiera liczbe x,liczy g^x i przesyła Bobowi
 x = 10
 g_x = g ** x
@@ -70,12 +53,11 @@ g_xy = g_x ** y
 print(
     f"Bob wybiera liczbe y={y}\nliczy (g^x)^y={g_xy}\nnastępnie podpisuje ten składnik swoim kluczem prywatnym i przesyła Alice wraz z g^y\n")
 # podpisany hash w postaci szestnastkowej
-g_xy_signed = sign_message(str(g_xy), B_priv_key)
+g_xy_signed = sign(str(g_xy), bob_priv_key)
 
 print(g_xy_signed)
 
 # Następnie Alice dostaje podpisaną wiadomość przez Boba, sprawdza jej poprawność i oblicza x Boba
 
-g_xy_alice = g_x * g_y
-if verify(g_xy_alice, g_xy_signed, B_pub_key):
+if verify(str(g_xy), g_xy_signed, bob_pub_key):
     print("Udana weryfikacja")
