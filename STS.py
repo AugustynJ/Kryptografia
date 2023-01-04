@@ -40,24 +40,57 @@ bob_pub_key = rsa.PublicKey.load_pkcs1(b2)
 
 # Ustalenie losowej stałej
 g = 4
-# Alice wybiera liczbe x,liczy g^x i przesyła Bobowi
-x = 10
+
+# Krok 1.
+# Alice wybiera liczbe x, liczy g^x i przesyła Bobowi w formie zaszyfrowanej kluczem publicznym Boba
+x = 2
 g_x = g ** x
-print(f"Alice wybiera liczbe x={x}\nliczy g^x={g_x} \ni przesyła Bobowi\n")
+g_x_encrypted = encrypt(str(g_x), bob_pub_key)
 
-# Bob wybiera liczbe y,liczy g^y
-y = 25
+
+# Krok 2.
+# Bob otrzymuje wiadomość od Alice, wybiera liczbe y, liczy g^y i przesyła g^y oraz odszyfrowaną g^x Alice w formie zaszyfrowanej kluczem publicznym Alice
+y = 2
 g_y = g ** y
-g_xy = g_x ** y
+g_x_decrypted_bob = decrypt(g_x_encrypted, bob_priv_key)
 
-print(
-    f"Bob wybiera liczbe y={y}\nliczy (g^x)^y={g_xy}\nnastępnie podpisuje ten składnik swoim kluczem prywatnym i przesyła Alice wraz z g^y\n")
-# podpisany hash w postaci szestnastkowej
-g_xy_signed = sign(str(g_xy), bob_priv_key)
 
-print(g_xy_signed)
+g_x_encrypted_bob = encrypt(g_x_decrypted_bob, alice_pub_key)  # bytes
+g_y_encrypted_bob = encrypt(str(g_y), alice_pub_key)  # bytes
 
-# Następnie Alice dostaje podpisaną wiadomość przez Boba, sprawdza jej poprawność i oblicza x Boba
 
-if verify(str(g_xy), g_xy_signed, bob_pub_key):
-    print("Udana weryfikacja")
+# Krok 3.
+# Alice otrzymuje zaszyfrowaną wiadomość od Boba i odszyfrowuje ją za pomocą klucza publicznego Boba i upewnia się, że faktycznie nadawcą jest Bob
+
+g_x_decrypted_alice = decrypt(g_x_encrypted_bob, alice_priv_key)
+
+if int(g_x_decrypted_alice) == g_x:
+    print("Alice ma pewność, że faktycznie nadawcą jest Bob")
+else:
+    print("Alice nie ma pewności, że faktycznie nadawcą jest Bob")
+
+# Alice szyfruje otrzymaną wartość g^y kluczem publicznym Boba a następnie ją przesyła.
+
+g_y_decrypted_alice = decrypt(g_y_encrypted_bob, alice_priv_key)  # str
+
+g_y_encrypted_alice = encrypt(str(g_y_decrypted_alice), bob_pub_key)  # bytes
+
+
+# Krok 4.
+# Alice na podstawie dostępnych wartości g^x i g^y generuje klucz sesji
+g_xy_alice = int(g_y_decrypted_alice) ** int(g_x)
+
+
+# Krok 5.
+# Bob otrzymuję wiadomość, odszyfrowuję ją swoim kluczem prywatnym
+# Na podstawie dostępnych wartości g^x i g^y generuje klucz sesji
+g_y_decrypted_bob = decrypt(g_y_encrypted_alice, bob_priv_key)
+
+if int(g_y_decrypted_bob) == g_y:
+    print("Bob ma pewność, że faktycznie nadawcą jest Alice")
+else:
+    print("Bob nie ma pewności, że faktycznie nadawcą jest alice")
+
+g_xy_bob = int(g_y) ** int(g_x_decrypted_bob)
+
+# Od tej pory możliwa jest dalsza komunikacja używając nowego klucza szyfrującego
